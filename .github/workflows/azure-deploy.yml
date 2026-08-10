@@ -37,6 +37,17 @@ jobs:
         working-directory: backend
         run: npm run build
 
+      - name: Verify Prisma Client is generated
+        working-directory: backend
+        run: |
+          test -d node_modules/.prisma/client && echo "OK: .prisma/client exists"
+          ls node_modules/.prisma/client/schema.prisma >/dev/null && echo "OK: generated schema.prisma exists"
+          if grep -q "@prisma/client/default" dist/config/database.js; then
+            echo "FAIL: dist/config/database.js references @prisma/client/default" >&2
+            exit 1
+          fi
+          echo "OK: dist/config/database.js has no stale @prisma/client/default import"
+
       - name: Upload backend
         uses: actions/upload-artifact@v4
         with:
@@ -66,3 +77,4 @@ jobs:
         with:
           app-name: snake-app-new-2026-2
           package: backend
+          app-settings: '-SCM_DO_BUILD_DURING_DEPLOYMENT 0'

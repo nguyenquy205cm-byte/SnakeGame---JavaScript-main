@@ -2,6 +2,10 @@
   "name": "snake-cloud-backend",
   "version": "1.0.0",
   "private": true,
+  "main": "dist/server.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "ts-node-dev --transpile-only --no-notify --respawn src/server.ts",
     "build": "tsc -p tsconfig.json",
@@ -16,7 +20,7 @@
     "seed": "npx ts-node --transpile-only prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^5.20.0",
+    "@prisma/client": "5.22.0",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
@@ -24,7 +28,7 @@
     "express": "^4.18.2",
     "express-rate-limit": "^8.6.2",
     "jsonwebtoken": "^9.0.2",
-    "prisma": "^5.20.0"
+    "prisma": "5.22.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.2",
