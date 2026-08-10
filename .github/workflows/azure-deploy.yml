@@ -78,4 +78,3 @@ jobs:
         with:
           app-name: snake-app-new-2026-2
           package: backend
-          app-settings: '-SCM_DO_BUILD_DURING_DEPLOYMENT 0'
