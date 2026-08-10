@@ -53,6 +53,7 @@ jobs:
         with:
           name: snake-backend
           path: backend
+          include-hidden-files: true
 
   deploy:
     runs-on: ubuntu-latest
