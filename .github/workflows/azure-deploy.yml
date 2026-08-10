@@ -64,5 +64,5 @@ jobs:
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: snake-app-new-2026
+          app-name: snake-app-new-2026-2
           package: backend
