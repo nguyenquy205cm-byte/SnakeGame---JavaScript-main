@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { trace, SpanStatusCode } from '@opentelemetry/api';
 import { logger } from '../utils/logger';
 
 interface AppError extends Error {
@@ -14,6 +15,13 @@ export const errorHandler = (
 ) => {
   const status = err.status || 500;
   const code = err.code || (status === 500 ? 'INTERNAL_SERVER_ERROR' : 'ERROR');
+
+  if (status >= 500) {
+    const span = trace.getActiveSpan();
+    span?.recordException(err);
+    span?.setStatus({ code: SpanStatusCode.ERROR });
+  }
+
   logger.error(err.message, { status, code, stack: process.env.NODE_ENV === 'production' ? undefined : err.stack });
   res.status(status).json({
     success: false,

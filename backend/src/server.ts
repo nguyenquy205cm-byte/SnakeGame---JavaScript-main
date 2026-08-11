@@ -1,3 +1,4 @@
+import './config/telemetry';
 import app from './app';
 import { loadConfig } from './config';
 import { logger } from './utils/logger';
