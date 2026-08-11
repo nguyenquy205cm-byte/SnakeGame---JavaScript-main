@@ -1,9 +1,10 @@
 import { prisma } from '../config/database';
 
 interface CreateScorePayload {
-  userId: number;
+  userId: number | null;
   score: number;
   level: number;
+  playerName?: string | null;
 }
 
 export const scoreService = {
@@ -11,6 +12,7 @@ export const scoreService = {
     return prisma.score.create({
       data: {
         userId: payload.userId,
+        playerName: payload.playerName ?? null,
         score: payload.score,
         level: payload.level,
       },

@@ -3,7 +3,8 @@ import type { Score, LeaderboardItem } from '../types/api';
 
 export interface CreateScorePayload {
   score: number;
-  level: number;
+  level?: number;
+  playerName?: string;
 }
 
 export const getTopScores = async (): Promise<LeaderboardItem[]> => {

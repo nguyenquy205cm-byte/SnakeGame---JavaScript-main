@@ -1,0 +1,25 @@
+BEGIN TRY
+
+BEGIN TRAN;
+
+-- AlterTable
+ALTER TABLE [dbo].[Score] ADD [playerName] NVARCHAR(1000);
+
+-- AlterTable
+ALTER TABLE [dbo].[Score] ALTER COLUMN [userId] INT NULL;
+
+-- AlterTable
+ALTER TABLE [dbo].[Score] ADD CONSTRAINT [Score_level_df] DEFAULT 1 FOR [level];
+
+COMMIT TRAN;
+
+END TRY
+BEGIN CATCH
+
+IF @@TRANCOUNT > 0
+BEGIN
+    ROLLBACK TRAN;
+END;
+THROW
+
+END CATCH

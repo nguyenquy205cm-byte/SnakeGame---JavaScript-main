@@ -111,6 +111,26 @@ body {
   background-color: #45a049;
 }
 
+.guest-name-input {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 1rem;
+}
+
+.guest-name-input input {
+  padding: 8px 10px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.save-success {
+  color: #4CAF50;
+  font-size: 1rem !important;
+  margin-bottom: 1rem !important;
+}
+
 .difficulty-modal {
   display: flex;
   position: fixed;

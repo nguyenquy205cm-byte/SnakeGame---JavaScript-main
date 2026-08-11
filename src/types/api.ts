@@ -10,7 +10,8 @@ export interface User {
 
 export interface Score {
   id: number;
-  userId: number;
+  userId: number | null;
+  playerName: string | null;
   score: number;
   level: number;
   createdAt: string;

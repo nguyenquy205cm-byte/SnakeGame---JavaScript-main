@@ -14,11 +14,12 @@ interface AuditLogEntry {
 
 interface AdminScore {
   id: number;
-  userId: number;
+  userId: number | null;
+  playerName: string | null;
   score: number;
   level: number;
   createdAt: string;
-  user: { id: number; username: string; email: string };
+  user: { id: number; username: string; email: string } | null;
 }
 
 interface AdminAchievement {
@@ -121,7 +122,7 @@ const AdminDashboard = () => {
             {scores.map((item) => (
               <tr key={item.id}>
                 <td>{item.id}</td>
-                <td>{item.user.username}</td>
+                <td>{item.user ? item.user.username : item.playerName ?? 'Guest'}</td>
                 <td>{item.score}</td>
                 <td>{item.level}</td>
                 <td>{new Date(item.createdAt).toLocaleString()}</td>

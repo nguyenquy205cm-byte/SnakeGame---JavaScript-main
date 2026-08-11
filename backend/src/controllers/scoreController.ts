@@ -21,7 +21,7 @@ export const getTopScores = async (_req: AuthRequest, res: Response, next: NextF
     const scores = await scoreService.getTopScores();
     const data = scores.map((score, index) => ({
       rank: index + 1,
-      username: score.user.username,
+      username: score.user?.username ?? score.playerName ?? 'Guest',
       score: score.score,
       level: score.level,
       createdAt: score.createdAt,
@@ -78,16 +78,14 @@ export const getScoreHistory = async (req: AuthRequest, res: Response, next: Nex
 
 export const createScore = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { score, level } = req.body;
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ status: 'fail', message: 'User not authenticated' });
-    }
+    const { score, level, playerName } = req.body;
+    const userId = req.user?.id ?? null;
 
     const created = await scoreService.createScore({
       userId,
       score: parseNumber(score),
-      level: parseNumber(level),
+      level: level !== undefined ? parseNumber(level) : 1,
+      playerName: typeof playerName === 'string' && playerName.trim() ? playerName.trim() : null,
     });
 
     await auditLogService.create({
@@ -123,7 +121,7 @@ export const deleteScore = async (req: AuthRequest, res: Response, next: NextFun
     const deleted = await scoreService.deleteById(scoreId);
     await auditLogService.create({
       action: 'DELETE_SCORE',
-      userId: deleted.userId,
+      userId: deleted.userId ?? null,
       entity: 'Score',
       entityId: deleted.id,
       ipAddress: req.ip,
