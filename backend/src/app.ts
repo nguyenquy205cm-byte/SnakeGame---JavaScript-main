@@ -11,14 +11,20 @@ import { requestLogger } from './middlewares/requestLogger';
 const app: Application = express();
 const config = loadConfig();
 
-const allowedOrigins = [config.frontendUrl, 'http://localhost:5173', 'http://127.0.0.1:5173'].filter(Boolean);
+const allowedOrigins = [
+  config.frontendUrl,
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    return callback(new Error('Not allowed by CORS'));
+    const error: Error & { status?: number } = new Error('Not allowed by CORS');
+    error.status = 403;
+    return callback(error);
   },
   credentials: true,
 }));

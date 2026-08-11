@@ -8,8 +8,10 @@ export interface HealthResponse {
 
 const ACCESS_TOKEN_KEY = 'accessToken';
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/+$/, '');
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
