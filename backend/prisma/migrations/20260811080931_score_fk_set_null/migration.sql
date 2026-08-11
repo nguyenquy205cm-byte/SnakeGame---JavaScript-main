@@ -2,6 +2,9 @@ BEGIN TRY
 
 BEGIN TRAN;
 
+-- AlterTable
+ALTER TABLE [dbo].[Score] ALTER COLUMN [userId] INT NULL;
+
 -- DropForeignKey
 ALTER TABLE [dbo].[Score] DROP CONSTRAINT [Score_userId_fkey];
 
@@ -20,3 +23,4 @@ END;
 THROW
 
 END CATCH
+
