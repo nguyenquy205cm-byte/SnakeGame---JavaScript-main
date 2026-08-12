@@ -1,351 +1,351 @@
-# Snake Cloud — Snake Game with Authentication & Cloud-ready Backend
+# Snake Game
 
-A complete Snake Game web application built with a modern cloud-ready architecture:
-
-```
-React (Frontend)
-    ↓
-Node.js + Express (Backend)
-    ↓
-Prisma (ORM)
-    ↓
-SQL Server / Azure SQL
-```
-
-Deployment target: **Microsoft Azure**
-
-```
-GitHub
-  ↓
-GitHub Actions (CI)
-  ↓
-Azure App Service (Backend + Static Frontend)
-  ↓
-Azure SQL Database
-```
-
-Observability:
-
-```
-Application Insights → telemetry
-Azure Monitor       → metrics, logs, alerts
-```
-
-## Table of Contents
-
-1. [Project Overview](#project-overview)
-2. [Architecture](#architecture)
-3. [Frontend](#frontend)
-4. [Backend](#backend)
-5. [Prisma & Database](#prisma--database)
-6. [Authentication](#authentication)
-7. [Roles: USER / ADMIN](#roles-user--admin)
-8. [Environment Variables](#environment-variables)
-9. [Local Setup](#local-setup)
-10. [Database Migration](#database-migration)
-11. [Seed Data](#seed-data)
-12. [Build](#build)
-13. [Tests](#tests)
-14. [GitHub](#github)
-15. [Azure Deployment Preparation](#azure-deployment-preparation)
+Ứng dụng web game **Snake Game** được xây dựng bằng **React + TypeScript + Vite** ở phía frontend và **Node.js + Express + TypeScript + Prisma** ở phía backend. Hệ thống được triển khai trên cloud (Render, Azure SQL) và được giám sát bằng **Azure Application Insights**, **Azure Monitor** cùng cơ chế cảnh báo qua email.
 
 ---
 
-## Project Overview
+## Mục lục
 
-- **Snake Game** gameplay preserved from the original implementation (React + TypeScript).
-- **Authentication**: register, login, logout, refresh token, current user.
-- **Roles**: `USER` and `ADMIN` with role-based API authorization.
-- **Leaderboard**, **Score History**, **Achievements**, and an **Admin Dashboard**.
-- Scores are always attributed to the authenticated user from the JWT — never from a client-supplied `userId`.
+1. [Giới thiệu](#1-giới-thiệu)
+2. [Mục tiêu hệ thống](#2-mục-tiêu-hệ-thống)
+3. [Công nghệ sử dụng](#3-công-nghệ-sử-dụng)
+4. [Kiến trúc hệ thống](#4-kiến-trúc-hệ-thống)
+5. [Danh sách dịch vụ Cloud](#5-danh-sách-dịch-vụ-cloud)
+6. [Chi tiết tích hợp](#6-chi-tiết-tích-hợp)
+7. [Deployment](#7-deployment)
+8. [Monitoring & Alerting](#8-monitoring--alerting)
+9. [Environment Variables](#9-environment-variables)
+10. [API Overview](#10-api-overview)
+11. [Security Considerations](#11-security-considerations)
+12. [Kết quả triển khai](#12-kết-quả-triển-khai)
+13. [Repository](#13-repository)
 
-## Architecture
+---
 
-- **Frontend**: React 19 + TypeScript + Vite + Axios + React Router.
-- **Backend**: Node.js + Express 4 + TypeScript.
-- **Database**: Prisma 5 ORM over **SQL Server / Azure SQL** (`provider = "sqlserver"`).
-- **Auth**: JWT access token (short-lived) + rotating refresh token stored in an **HttpOnly** cookie.
+## 1. Giới thiệu
 
-## Frontend
+**Snake Game** là một ứng dụng web game hoàn chỉnh cho phép:
 
-Directory: project root (`package.json`), source in `src/`.
+- **Đăng ký / Đăng nhập** tài khoản người dùng.
+- **Chơi game** rắn săn mồi trực tiếp trên trình duyệt.
+- **Lưu điểm** của người chơi vào database.
+- **Xem lịch sử điểm** của từng tài khoản.
+- **Xem bảng xếp hạng** (leaderboard) dựa trên điểm cao nhất.
+- **Mở khóa thành tích** (achievements).
+- **Quản trị viên (ADMIN)** quản lý người dùng, điểm số, thành tích và xem audit logs qua Admin Dashboard.
 
-| Page | Route | Access |
-| --- | --- | --- |
-| Snake Game | `/` | Public |
-| Leaderboard | `/leaderboard` | Public |
-| Login | `/login` | Public |
-| Register | `/register` | Public |
-| Achievements | `/achievements` | Public (locked state if not logged in) |
-| Score History | `/scores/history` | `USER` / `ADMIN` |
-| Admin Dashboard | `/admin` | `ADMIN` only |
+Ngoài phần chơi game, dự án còn tập trung vào kiến trúc cloud chuyên nghiệp: tách biệt frontend/backend, kết nối database đám mây, triển khai tự động và giám sát ứng dụng end-to-end.
 
-Key files:
+---
 
-- `src/context/AuthContext.tsx` — auth state (`currentUser`, `isAuthenticated`, `loading`, `login`, `register`, `logout`, `refreshToken`).
-- `src/services/api.ts` — Axios client with `VITE_API_BASE_URL`, Bearer token injection, and automatic refresh-on-401.
-- `src/services/authService.ts`, `scoreService.ts`, `achievementsService.ts`, `userService.ts`.
-- `src/pages/*` — Home, Login, Register, Leaderboard, Score History, Achievements, Admin Dashboard.
+## 2. Mục tiêu hệ thống
 
-## Backend
+- Xây dựng một **web game** hoàn chỉnh với giao diện hiện đại (React + TypeScript).
+- Xây dựng **backend API** RESTful (Node.js + Express) phục vụ authentication, điểm số, game session, achievements và quản trị.
+- **Lưu dữ liệu trên cloud** bằng Azure SQL Database thông qua Prisma ORM.
+- **Triển khai hệ thống trên cloud**: frontend dùng Render Static Site, backend dùng Render Web Service.
+- **Monitoring**: thu thập telemetry bằng Azure Application Insights (HTTP, performance, exceptions, dependencies).
+- **Alerting**: Azure Monitor phối hợp Action Group gửi cảnh báo qua email khi hệ thống/database gặp sự cố (ví dụ: CPU Azure SQL vượt ngưỡng).
 
-Directory: `backend/`.
+---
 
-Endpoints:
+## 3. Công nghệ sử dụng
 
-| Method | Path | Auth |
-| --- | --- | --- |
-| POST | `/api/auth/register` | Public (rate limited) |
-| POST | `/api/auth/login` | Public (rate limited) |
-| POST | `/api/auth/refresh` | Public (cookie) |
-| POST | `/api/auth/logout` | Public (cookie) |
-| GET | `/api/auth/me` | JWT |
-| GET | `/api/health` | Public |
-| GET | `/api/health/db` | Public (503 if database down) |
-| GET | `/api/scores/top` | Public |
-| GET | `/api/scores/history` | JWT (own scores) |
-| GET | `/api/scores/:id` | JWT (owner or ADMIN) |
-| POST | `/api/scores` | JWT (userId from token) |
-| DELETE | `/api/scores/:id` | ADMIN |
-| POST | `/api/game/sessions` | JWT |
-| GET | `/api/game/sessions` | JWT (own sessions) |
-| POST | `/api/game/sessions/:id/end` | JWT (owner or ADMIN) |
-| GET | `/api/achievements` | Public |
-| GET | `/api/achievements/me` | JWT |
-| GET | `/api/admin/users` | ADMIN |
-| PATCH | `/api/admin/users/:id` | ADMIN |
-| GET | `/api/admin/scores` | ADMIN |
-| GET | `/api/admin/achievements` | ADMIN |
-| GET | `/api/admin/audit-logs` | ADMIN |
+| Thành phần | Công nghệ | Mục đích |
+|---|---|---|
+| Frontend | React + TypeScript + Vite | Giao diện game, SPA |
+| Backend | Node.js + Express + TypeScript | REST API |
+| ORM | Prisma | Truy cập database |
+| Database | Azure SQL | Lưu trữ dữ liệu |
+| Source Control | GitHub | Quản lý source code |
+| Frontend Hosting | Render Static Site | Deploy frontend |
+| Backend Hosting | Render Web Service | Deploy backend |
+| Monitoring | Azure Application Insights | Application telemetry |
+| Monitoring | Azure Monitor | Theo dõi và cảnh báo |
+| Alerting | Azure Action Group | Gửi email cảnh báo |
+| CI | GitHub Actions | Build check backend + frontend |
 
-Error responses are JSON with `{ success: false, message, code }`. Stack traces are hidden in production.
+---
 
-## Prisma & Database
+## 4. Kiến trúc hệ thống
 
-Schema: `backend/prisma/schema.prisma` with `provider = "sqlserver"` (Azure SQL compatible).
+```mermaid
+flowchart LR
+    subgraph GitHub["GitHub"]
+        GH["GitHub Repository"]
+    end
 
-Models:
+    subgraph Render["Render"]
+        FE["Render Static Site<br/>React + TypeScript + Vite"]
+        BE["Render Web Service<br/>Node.js + Express + TypeScript"]
+    end
 
-- `User`
-- `Score`
-- `GameSession`
-- `Achievement`
-- `UserAchievement`
-- `RefreshToken`
-- `AuditLog`
+    subgraph Azure["Azure"]
+        SQL[("Azure SQL Database")]
+        AI["Azure Application Insights"]
+        AM["Azure Monitor"]
+        AR["Alert Rule"]
+        AG["Action Group"]
+    end
 
-## Authentication
+    GH -->|"source"| FE
+    GH -->|"source"| BE
+    FE -->|"HTTPS REST API / JSON"| BE
+    BE -->|"Prisma ORM"| SQL
+    BE -->|"Azure Monitor OpenTelemetry"| AI
+    AI -->|"metrics / telemetry"| AM
+    AM -->|"trigger"| AR
+    AR --> AG
+    AG -->|"email"| EMAIL["Email Notification"]
+```
 
-- Password hashing: **bcryptjs** (never store plaintext).
-- Access token: short-lived JWT (`JWT_EXPIRES_IN`, default `15m`).
-- Refresh token: longer-lived JWT (`JWT_REFRESH_EXPIRES_IN`, default `7d`) stored in an **HttpOnly** cookie and in the `RefreshToken` table. Refresh rotates the token (old token is replaced).
-- The frontend stores only the access token in `localStorage` and automatically refreshes it on `401`.
-- CORS allows credentials only for configured origins (`FRONTEND_URL` + local dev origins). `origin: "*"` is not used.
+### Giải thích từng thành phần
 
-## Roles: USER / ADMIN
+| Thành phần | Vai trò |
+|---|---|
+| **GitHub** | Lưu trữ toàn bộ source code của frontend và backend. Render lấy source từ repository để build và deploy. |
+| **Render Static Site** | Phục vụ bản build tĩnh của frontend (React SPA) cho người dùng. |
+| **Render Web Service** | Chạy backend Node.js liên tục (REST API), expose dưới tiền tố `/api`. |
+| **Azure SQL Database** | Database đám mây lưu người dùng, điểm số, game session, thành tích, refresh token và audit log. |
+| **Prisma ORM** | Lớp truy cập database giữa backend và Azure SQL. |
+| **Azure Application Insights** | Thu thập telemetry từ backend (HTTP requests, performance, exceptions, dependencies). |
+| **Azure Monitor** | Tổng hợp metric, theo dõi trạng thái hệ thống và cung cấp cơ chế cảnh báo (Alert Rules). |
+| **Action Group** | Nhận sự kiện cảnh báo từ Alert Rule và gửi notification tới email người quản trị. |
 
-- `USER` — play, save scores, view own score history, view leaderboard, view own achievements.
-- `ADMIN` — manage users (activate/deactivate), view all scores and achievements, view audit logs.
-- Backend enforces this with `requireAuth` + `requireRole(...)` middlewares. The client cannot choose its own `userId`.
+---
 
-## Environment Variables
+## 5. Danh sách dịch vụ Cloud
+
+| Dịch vụ | Nhà cung cấp | Vai trò |
+|---|---|---|
+| Render Static Site | Render | Deploy Frontend |
+| Render Web Service | Render | Deploy Backend |
+| Azure SQL Database | Microsoft Azure | Database lưu trữ dữ liệu ứng dụng |
+| Application Insights | Microsoft Azure | Telemetry và Performance Monitoring |
+| Azure Monitor | Microsoft Azure | Monitoring và Alert |
+| Action Group | Microsoft Azure | Email Notification |
+
+---
+
+## 6. Chi tiết tích hợp
+
+### 6.1 GitHub → Render
+
+- Toàn bộ source code được lưu trên GitHub.
+- Render liên kết với repository GitHub: khi có commit mới trên branch `main`, Render tự động kéo source, chạy build và deploy (nếu Auto Deploy được bật).
+- Frontend và Backend là hai dịch vụ riêng biệt trên Render (Static Site và Web Service), cùng đọc từ cùng một repository nhưng có cấu hình build/start khác nhau.
+
+### 6.2 Frontend → Backend
+
+- Frontend gọi REST API backend thông qua **HTTPS** với dữ liệu **JSON**.
+- Axios client trong `src/services/api.ts` dùng biến `VITE_API_BASE_URL` (giá trị production trỏ tới URL của backend trên Render, kèm tiền tố `/api`).
+- Frontend gửi kèm `Authorization: Bearer <accessToken>` cho các request cần đăng nhập và tự động refresh token khi nhận HTTP 401.
+- CORS được cấu hình cho phép đúng origin của frontend thông qua biến `FRONTEND_URL` (không dùng `origin: "*"`).
+
+### 6.3 Backend → Azure SQL
+
+- Backend sử dụng **Prisma ORM** để truy vấn và cập nhật dữ liệu trên **Azure SQL Database** (`provider = "sqlserver"` trong `backend/prisma/schema.prisma`).
+- Connection string được đọc từ biến môi trường `DATABASE_URL`.
+- Các giá trị nhạy cảm (connection string, mật khẩu) được cấu hình **chỉ trên Render Environment Variables**, không commit vào GitHub (chỉ commit `.env.example`).
+- Migrations được triển khai lên Azure SQL bằng `npx prisma migrate deploy` (không dùng `migrate dev` với database production).
+
+### 6.4 Backend → Application Insights
+
+- Backend khởi tạo telemetry bằng **Azure Monitor OpenTelemetry** (`@azure/monitor-opentelemetry`) kết hợp instrumentations cho Express và Prisma (xem `backend/src/config/telemetry.ts`).
+- Kích hoạt khi biến môi trường `APPLICATIONINSIGHTS_CONNECTION_STRING` được cấu hình trên Render.
+- Telemetry thu thập được:
+  - **HTTP requests**: request/response đến backend.
+  - **Performance**: thời gian phản hồi (response time), throughput.
+  - **Failed requests**: request lỗi (4xx/5xx).
+  - **Exceptions**: ngoại lệ trong quá trình xử lý.
+  - **Dependencies**: các lời gọi tới hệ thống bên ngoài, bao gồm **database** (Prisma instrumentation).
+
+### 6.5 Application Insights → Azure Monitor
+
+- Application Insights đưa telemetry và metric về **Azure Monitor**.
+- Azure Monitor tổng hợp dữ liệu để:
+  - Theo dõi **metrics** và trạng thái hệ thống.
+  - Giám sát **requests**, **failures**, **performance**.
+  - Cung cấp dữ liệu cho **Alert Rules**.
+- Dữ liệu từ `/api/health` và `/api/health/db` có thể được dùng làm availability probe.
+
+### 6.6 Azure Monitor → Action Group → Email
+
+- **Alert Rule** trong Azure Monitor xác định điều kiện cảnh báo, ví dụ: **CPU của Azure SQL vượt ngưỡng cao (lớn hơn ~80%)** hoặc tỷ lệ request lỗi vượt ngưỡng.
+- Khi điều kiện được thỏa mãn, Alert Rule kích hoạt và gửi sự kiện tới **Action Group**.
+- **Action Group** thực hiện hành động notification, gửi **email cảnh báo** tới người quản trị để xử lý kịp thời.
+
+---
+
+## 7. Deployment
+
+Quy trình triển khai:
+
+```
+Developer → Git → GitHub → Render → Build → Deploy → Production
+```
+
+### Frontend (Render Static Site)
+
+- Build: `npm install` → `npm run build` (TypeScript compile + Vite build ra thư mục `dist/`).
+- Render phục vụ bản build tĩnh dưới dạng Static Site.
+
+### Backend (Render Web Service)
+
+- Install & build: `npm install` (tự động chạy `prisma generate`) → `npm run build` (TypeScript compile ra `dist/`).
+- Start: `npm start` → `node dist/server.js`, server bind `0.0.0.0` và lắng nghe trên cổng từ biến `PORT`/`APP_PORT`.
+
+### Tự động deploy
+
+- Render lấy source trực tiếp từ GitHub repository.
+- Khi có commit mới trên branch `main`, Render tự động build và deploy lại (nếu **Auto Deploy** được bật).
+- `Environment Variables` được cấu hình trực tiếp trên Render (không cần file `.env` trong production).
+- **Secrets không bao giờ được commit vào GitHub**; chỉ template `.env.example` được lưu trong repo.
+- GitHub Actions (`.github/workflows/ci.yml`) chạy CI trên mỗi push/PR: cài dependencies, `prisma generate`, build backend và frontend để đảm bảo mã nguồn luôn build được.
+
+---
+
+## 8. Monitoring & Alerting
+
+### Application Insights
+
+- **Overview**: tổng quan về requests, failures, availability, performance.
+- **Live Metrics**: theo dõi metric theo thời gian thực.
+- **Performance**: thời gian phản hồi của các endpoint.
+- **Requests**: số lượng request và phân bố theo endpoint.
+- **Failed Requests**: các request thất bại (4xx/5xx).
+- **Exceptions**: ngoại lệ trong backend.
+- **Dependencies**: lời gọi tới Azure SQL (Prisma instrumentation) và các dependency khác.
+
+### Azure Monitor
+
+- **Metrics**: tổng hợp metric từ Application Insights (CPU, memory, requests, ...).
+- **Alert Rules**: định nghĩa điều kiện cảnh báo.
+- **SQL CPU Alert**: Alert Rule giám sát CPU của Azure SQL, cảnh báo khi vượt ngưỡng cao (~80%).
+- **Monitoring**: theo dõi trạng thái tổng thể hệ thống/database.
+
+### Action Group
+
+- Nhận sự kiện từ Alert Rule khi có cảnh báo.
+- Gửi **email notification** tới địa chỉ email người quản trị.
+
+---
+
+## 9. Environment Variables
+
+> Actual values are configured securely in Render Environment Variables and are not committed to GitHub.
 
 ### Frontend
 
-`.env` / `frontend/.env.example`:
-
-```ini
-VITE_API_BASE_URL=/api
-```
-
-Production:
-
-```ini
-VITE_API_BASE_URL=https://<your-app>.azurewebsites.net/api
-```
+| Biến | Mô tả |
+|---|---|
+| `VITE_API_BASE_URL` | Base URL của backend API (production trỏ tới URL backend trên Render, kèm `/api`). |
 
 ### Backend
 
-`backend/.env.example`:
+| Biến | Mô tả |
+|---|---|
+| `DATABASE_URL` | Connection string tới Azure SQL (Prisma). |
+| `SHADOW_DATABASE_URL` | Connection string shadow database (chỉ dùng khi chạy `prisma migrate dev` cục bộ). |
+| `JWT_SECRET` | Secret ký access token. |
+| `JWT_REFRESH_SECRET` | Secret ký refresh token. |
+| `JWT_EXPIRES_IN` | Thời gian sống của access token (mặc định `15m`). |
+| `JWT_REFRESH_EXPIRES_IN` | Thời gian sống của refresh token (mặc định `7d`). |
+| `FRONTEND_URL` | Origin của frontend (dùng cho CORS). |
+| `PORT` / `APP_PORT` | Cổng lắng nghe của backend. |
+| `NODE_ENV` | Môi trường chạy (`development` / `production`). |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Connection string của Azure Application Insights (kích hoạt telemetry). |
 
-```ini
-PORT=4000
-NODE_ENV=development
-DATABASE_URL=sqlserver://...
-JWT_SECRET=...
-JWT_REFRESH_SECRET=...
-JWT_EXPIRES_IN=15m
-JWT_REFRESH_EXPIRES_IN=7d
-FRONTEND_URL=http://localhost:5173
-APPLICATIONINSIGHTS_CONNECTION_STRING=   # optional
-```
+---
 
-### Using DATABASE_URL
+## 10. API Overview
 
-`DATABASE_URL` is a SQL Server connection string, e.g.:
+Tất cả endpoint nằm dưới tiền tố `/api`. Xác thực dùng JWT (Bearer token), refresh token được lưu trong HttpOnly cookie.
 
-```ini
-DATABASE_URL="sqlserver://<host>:1433;database=<dbname>;user=<user>;password=<password>;encrypt=true;trustServerCertificate=true"
-```
+### Health & Meta
 
-| Setting | Purpose |
-| --- | --- |
-| `host:1433` | Server address + port. Azure SQL: `<your-db>.database.windows.net:1433` |
-| `database` | Database name |
-| `user` / `password` | SQL login credentials |
-| `encrypt=true` | Required by Azure SQL |
-| `trustServerCertificate=true` | Accept self-signed certificates (local dev only) |
+| Method | Path | Auth | Mô tả |
+|---|---|---|---|
+| GET | `/api/health` | Public | Kiểm tra trạng thái backend. |
+| GET | `/api/health/db` | Public | Kiểm tra kết nối database (HTTP 503 nếu database không truy cập được). |
+| GET | `/api/version` | Public | Phiên bản ứng dụng. |
+| GET | `/api/info` | Public | Thông tin chung về ứng dụng. |
 
-Local development can point `DATABASE_URL` at a local SQL Server (or Docker `mcr.microsoft.com/mssql/server`); swap it for the Azure SQL string in production. Prisma reads `DATABASE_URL` from `backend/.env`, but a variable set in the shell takes precedence over the `.env` file — handy for temporarily pointing Prisma at a different database without editing the file.
+### Authentication
 
-### WARNING: never commit secrets
+| Method | Path | Auth | Mô tả |
+|---|---|---|---|
+| POST | `/api/auth/register` | Public (rate limited) | Đăng ký tài khoản. |
+| POST | `/api/auth/login` | Public (rate limited) | Đăng nhập, cấp access token và refresh token. |
+| POST | `/api/auth/refresh` | Public | Refresh access token bằng refresh token (body hoặc cookie). |
+| POST | `/api/auth/logout` | Public | Đăng xuất, thu hồi refresh token. |
+| GET | `/api/auth/me` | JWT | Lấy thông tin người dùng hiện tại. |
 
-- `.env` files (including `backend/.env` and `frontend/.env`) are excluded by `.gitignore`. Only `.env.example` templates are committed.
-- **Never commit** a real `DATABASE_URL`, connection string, password, or JWT secret to GitHub.
-- On Azure App Service, set the same values via **App Settings** (Application Settings) instead of a committed `.env` file.
+### Scores
 
-## Local Setup
+| Method | Path | Auth | Mô tả |
+|---|---|---|---|
+| GET | `/api/scores/top` | Public | Bảng xếp hạng điểm cao nhất (leaderboard). |
+| GET | `/api/scores/history` | JWT | Lịch sử điểm của người dùng hiện tại (phân trang `page`/`limit`). |
+| GET | `/api/scores/:id` | JWT | Chi tiết một điểm số (chủ sở hữu hoặc ADMIN). |
+| POST | `/api/scores` | Optional | Lưu điểm (userId lấy từ JWT nếu đăng nhập, ngược lại dùng `playerName` khách). |
+| DELETE | `/api/scores/:id` | ADMIN | Xóa điểm số. |
 
-Prerequisites: Node.js 18+, SQL Server (local or Azure SQL) reachable.
+### Game Sessions
 
-> Note: Prisma connects over **TCP**. If you use a local SQL Server instance (e.g. `SQLEXPRESS`), make sure TCP/IP is enabled on it (or use Docker SQL Server) — Prisma cannot connect through Shared Memory / Named Pipes only.
+| Method | Path | Auth | Mô tả |
+|---|---|---|---|
+| POST | `/api/game/sessions` | JWT | Tạo game session mới. |
+| GET | `/api/game/sessions` | JWT | Danh sách game session của người dùng hiện tại. |
+| POST | `/api/game/sessions/:id/end` | JWT | Kết thúc game session. |
 
-```bash
-# 1) Backend
-cd backend
-npm install
-cp .env.example .env           # then fill DATABASE_URL, JWT secrets
-npx prisma generate
-npm run dev                    # http://localhost:4000
+### Achievements
 
-# 2) Frontend (from project root)
-npm install
-cp .env.example .env           # VITE_API_BASE_URL=/api
-npm run dev                    # http://localhost:5173 (proxies /api to :4000)
-```
+| Method | Path | Auth | Mô tả |
+|---|---|---|---|
+| GET | `/api/achievements` | Public | Danh sách thành tích. |
+| GET | `/api/achievements/me` | JWT | Thành tích đã mở khóa của người dùng hiện tại. |
 
-## Database Migration
+### Admin
 
-### Migration history (committed)
+| Method | Path | Auth | Mô tả |
+|---|---|---|---|
+| GET | `/api/admin/users` | ADMIN | Danh sách người dùng. |
+| PATCH | `/api/admin/users/:id` | ADMIN | Cập nhật người dùng (kích hoạt/vô hiệu hóa). |
+| GET | `/api/admin/scores` | ADMIN | Danh sách toàn bộ điểm số. |
+| GET | `/api/admin/achievements` | ADMIN | Danh sách toàn bộ thành tích. |
+| GET | `/api/admin/audit-logs` | ADMIN | Nhật ký audit (các thao tác quản trị). |
 
-The initial migration is already created and stored at:
+---
 
-```
-backend/prisma/migrations/20260810095512_init/migration.sql
-```
+## 11. Security Considerations
 
-It creates all 7 tables (`User`, `Score`, `GameSession`, `Achievement`, `UserAchievement`, `RefreshToken`, `AuditLog`) plus their indexes and foreign keys.
+- **HTTPS**: toàn bộ giao tiếp frontend ↔ backend sử dụng HTTPS.
+- **JWT authentication**: access token ngắn hạn + refresh token dài hạn được lưu trong HttpOnly cookie; refresh token được xoay vòng (rotation) mỗi lần refresh.
+- **Password hashing**: mật khẩu được hash bằng `bcryptjs`, không bao giờ lưu plaintext.
+- **CORS**: chỉ cho phép đúng origin của frontend (`FRONTEND_URL` + các origin dev), bật `credentials`, không dùng `origin: "*"`.
+- **Environment Variables**: mọi cấu hình nhạy cảm được đọc từ Environment Variables trên Render.
+- **Không commit secrets**: `.env`, connection string, JWT secret không bao giờ được commit vào GitHub (đã có trong `.gitignore`).
+- **Database credentials**: quản lý qua `DATABASE_URL`/`SHADOW_DATABASE_URL` trong Environment Variables, không xuất hiện trong source code.
+- **Azure SQL firewall / network**: truy cập Azure SQL được kiểm soát qua firewall rules của Azure — chỉ các IP/dịch vụ được phép (bao gồm Render Web Service) mới kết nối được.
 
-> **About `migration_lock.toml`:** the file contains `provider = "mssql"`. This is intentional. Prisma's schema engine identifies the SQL Server datasource internally as `mssql`, so the lock file must use `mssql` — writing `provider = "sqlserver"` there causes **error P3019** ("datasource provider `mssql` … does not match … `sqlserver`"). The `schema.prisma` datasource stays `provider = "sqlserver"` (never change it).
+---
 
-### How migrations are created
+## 12. Kết quả triển khai
 
-`prisma migrate dev` requires a **shadow database**. Azure SQL does not allow Prisma to create one automatically (error `P3020`), so **never run `prisma migrate dev` with `DATABASE_URL` pointing at Azure SQL**. Use one of these safe workflows instead:
+- **Frontend đã deploy** trên Render Static Site — production `VITE_API_BASE_URL` trỏ tới backend Render (được ghi nhận trong `.env.example`).
+- **Backend đã deploy** trên Render Web Service — REST API expose dưới `/api`, CORS trỏ tới frontend production qua `FRONTEND_URL`.
+- **Azure SQL hoạt động** — backend kết nối qua Prisma ORM (`provider = "sqlserver"`), migrations được áp dụng bằng `prisma migrate deploy`.
+- **Application Insights** — code telemetry sử dụng Azure Monitor OpenTelemetry (Express + Prisma instrumentation) đã được tích hợp trong backend; telemetry được kích hoạt khi `APPLICATIONINSIGHTS_CONNECTION_STRING` được cấu hình trên Render.
+- **Azure Monitor hoạt động** — tiếp nhận metric/telemetry từ Application Insights để theo dõi requests, failures, performance.
+- **Alert Rule được cấu hình** — ví dụ: cảnh báo khi CPU của Azure SQL vượt ngưỡng cao (~80%).
+- **Action Group gửi email** — nhận sự kiện từ Alert Rule và gửi cảnh báo qua email tới người quản trị.
 
-> **Always run Prisma from `backend/`.** The repo root has no Prisma dependency, so `npx prisma …` from the root auto-downloads **Prisma 7**, which is incompatible with this project (error `P1012`: `url` is no longer allowed in `schema.prisma`, and `P3019`). From `backend/`, `npx prisma` resolves to the pinned **5.22.0**.
+> Lưu ý: cấu hình Alert Rule và Action Group được thực hiện trên Azure Portal, nằm ngoài source code. Các trạng thái "đã hoạt động" ở trên dựa trên cấu hình trong repository và môi trường triển khai hiện tại.
 
-**Option A — Local SQL Server (recommended for daily work)**
+---
 
-Run a local SQL Server (or Docker SQL Server) and point `DATABASE_URL` at it. Prisma creates the shadow database locally and generates the migration there; the resulting `migration.sql` is deployed to Azure later with `migrate deploy`.
+## 13. Repository
 
-```bash
-cd backend
-# DATABASE_URL must point to LOCAL SQL Server (not Azure)
-npx prisma migrate dev --name <migration_name>
-```
-
-**Option B — Generate SQL offline (no database needed)**
-
-For the initial/baseline migration, or to produce a migration without any reachable database, use `prisma migrate diff` (this is how the initial migration was generated):
-
-```bash
-cd backend
-mkdir -p prisma/migrations/<timestamp>_<name>
-
-# Initial migration (from an empty database)
-npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > prisma/migrations/<timestamp>_<name>/migration.sql
-
-# Next incremental change (from a saved copy of the old schema)
-npx prisma migrate diff --from-schema-datamodel prisma/old_schema.prisma --to-schema-datamodel prisma/schema.prisma --script > prisma/migrations/<timestamp>_<name>/migration.sql
-```
-
-Always sanity-check the generated SQL by applying it to a throwaway local SQL Server database before committing.
-
-### Deploying migrations to Azure SQL
-
-```bash
-cd backend
-npx prisma generate
-npx prisma migrate deploy
-```
-
-- `migrate deploy` applies only the **pending** migrations under `prisma/migrations/` in order and records them in the `_prisma_migrations` table.
-- It does **not** use a shadow database, so it works fine on Azure SQL.
-- Never run `prisma migrate dev`, `prisma migrate reset`, or `prisma db push` against the production Azure database.
-
-## Seed Data
-
-```bash
-cd backend
-npm run db:seed
-```
-
-Demo accounts (development only — do not use real passwords in production):
-
-| Role | Email | Password |
-| --- | --- | --- |
-| ADMIN | `admin@example.com` | `Admin123!` |
-| USER | `player1@example.com` | `Demo123!` |
-| USER | `player2@example.com` | `Demo123!` |
-
-The seed also creates sample scores, game sessions, achievements, and unlocks a few achievements for demo users.
-
-## Build
-
-```bash
-# Backend
-cd backend
-npm run build          # tsc -> dist/server.js
-npm start              # node dist/server.js
-
-# Frontend
-npm run build          # tsc -b && vite build -> dist/
-```
-
-## Tests
-
-No automated test suite is included yet. Manual verification:
-
-1. Register a new user.
-2. Login (access token stored; refresh cookie set).
-3. Play a game — the score is saved to the logged-in user.
-4. Open `/admin` as `admin@example.com` (ADMIN) vs a regular user (redirected).
-
-## GitHub
-
-- `.gitignore` excludes `.env`, `node_modules`, `dist`, `build`, `coverage`, and TypeScript build info.
-- CI workflow: `.github/workflows/ci.yml` — checkout → Node setup → install deps → `prisma generate` → build backend → build frontend. No secrets are embedded in the YAML.
-
-## Azure Deployment Preparation
-
-1. **Azure SQL Database** — provision, then set `DATABASE_URL` (SQL Server connection string) on the App Service.
-2. **Azure App Service** — deploy the backend. `server.ts` binds `0.0.0.0` and honors `PORT`/`APP_PORT`.
-3. **Static frontend** — either serve the Vite build via App Service / Storage Account + CDN, with `VITE_API_BASE_URL` pointing at the backend URL.
-4. **CORS** — set `FRONTEND_URL` to the deployed frontend origin.
-5. **Application Insights** — set `APPLICATIONINSIGHTS_CONNECTION_STRING` on the App Service. The backend uses structured logging ready for ingestion.
-6. **Azure Monitor** — use the `/api/health` and `/api/health/db` endpoints for availability probes, plus request/error logs.
-7. **CI/CD** — extend `.github/workflows/ci.yml` with an Azure deploy job once the App Service exists (use GitHub Secrets for connection strings, never commit them).
-
-### Architecture diagram
-
-```
-React (Vite SPA)
-  ↓  HTTPS / JSON + Bearer JWT
-Express API (Azure App Service)
-  ↓  Prisma
-Azure SQL Database
-
-GitHub → GitHub Actions → Azure App Service → Azure SQL
-                              ↓
-                    Application Insights → Azure Monitor
-```
+- Repository: https://github.com/nguyenquy205cm-byte/SnakeGame---JavaScript-main
+- Branch chính: `main`
